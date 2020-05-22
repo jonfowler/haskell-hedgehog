@@ -412,12 +412,27 @@ instance Functor m => Functor (TreeT m) where
   fmap f =
     TreeT . fmap (fmap f) . runTreeT
 
+-- NOTE: this implementation does not satisfy the ap law (@ap = <*>@)
+--
+-- Instead, this implementation enables parallel shrinking, that is it
+-- shrinks the left and right arguments independently.
 instance Applicative m => Applicative (NodeT m) where
   pure x =
     NodeT x []
-  (<*>) (NodeT ab tabs) na@(NodeT a tas) =
+  (<*>) nab@(NodeT ab tabs) na@(NodeT a tas) =
     NodeT (ab a) $
-      map (<*> (fromNodeT na)) tabs ++ map (fmap ab) tas
+      map (<*> (fromNodeT na)) tabs ++ map ((fromNodeT nab) <*>) tas
+
+--
+-- implementation: satisfies law (ap = <*>)
+--
+-- instance Applicative m => Applicative (NodeT m) where
+--   pure x =
+--     NodeT x []
+--   (<*>) (NodeT ab tabs) na@(NodeT a tas) =
+--     NodeT (ab a) $
+--       map (<*> (fromNodeT na)) tabs ++ map (fmap ab) tas
+
 
 instance Applicative m => Applicative (TreeT m) where
   pure =
@@ -459,23 +474,8 @@ instance MonadPlus m => MonadPlus (TreeT m) where
   mplus x y =
     TreeT (runTreeT x `mplus` runTreeT y)
 
-zipTreeT :: forall f a b. Applicative f => TreeT f a -> TreeT f b -> TreeT f (a, b)
-zipTreeT l0@(TreeT left) r0@(TreeT right) =
-  TreeT $
-    let
-      zipNodeT :: NodeT f a -> NodeT f b -> NodeT f (a, b)
-      zipNodeT (NodeT a ls) (NodeT b rs) =
-          NodeT (a, b) $
-            concat [
-                [zipTreeT l1 r0 | l1 <- ls]
-              , [zipTreeT l0 r1 | r1 <- rs]
-              ]
-    in
-      zipNodeT <$> left <*> right
-
 instance Monad m => MonadZip (TreeT m) where
-  mzip =
-    zipTreeT
+  mzip = liftA2 (,)
 
 instance MonadTrans TreeT where
   lift f =

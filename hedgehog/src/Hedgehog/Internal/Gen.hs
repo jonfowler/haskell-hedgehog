@@ -195,7 +195,6 @@ import qualified Control.Monad.Trans.State.Strict as Strict
 import qualified Control.Monad.Trans.Writer.Lazy as Lazy
 import qualified Control.Monad.Trans.Writer.Strict as Strict
 import           Control.Monad.Writer.Class (MonadWriter(..))
-import           Control.Monad.Zip (MonadZip(..))
 
 import           Data.Bifunctor (first)
 import           Data.ByteString (ByteString)
@@ -482,32 +481,17 @@ instance Functor m => Functor (GenT m) where
       fmap f (runGenT seed size gen)
 
 --
--- implementation: parallel shrinking
+-- implementation: satisfies law (ap = <*>)
 --
 instance Monad m => Applicative (GenT m) where
   pure =
     fromTreeMaybeT . pure
-
   (<*>) f m =
     GenT $ \ size seed ->
       case Seed.split seed of
         (sf, sm) ->
-          uncurry ($) <$>
-            runGenT size sf f `mzip`
-            runGenT size sm m
-
---
--- implementation: satisfies law (ap = <*>)
---
---instance Monad m => Applicative (GenT m) where
---  pure =
---    fromTreeMaybeT . pure
---  (<*>) f m =
---    GenT $ \ size seed ->
---      case Seed.split seed of
---        (sf, sm) ->
---          runGenT size sf f <*>
---          runGenT size sm m
+          runGenT size sf f <*>
+          runGenT size sm m
 
 instance Monad m => Monad (GenT m) where
   return =

@@ -13,164 +13,168 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-} -- MonadBase
+{-# LANGUAGE ViewPatterns #-}
 #if __GLASGOW_HASKELL__ >= 806
 {-# LANGUAGE DerivingVia #-}
 #endif
 
-module Hedgehog.Internal.Gen (
-  -- * Transformer
-    Gen
-  , GenT(..)
-  , MonadGen(..)
-
-  -- * Combinators
-  , generalize
-
-  -- ** Shrinking
-  , shrink
-  , prune
-
-  -- ** Size
-  , small
-  , scale
-  , resize
-  , sized
-
-  -- ** Integral
-  , integral
-  , integral_
-
-  , int
-  , int8
-  , int16
-  , int32
-  , int64
-
-  , word
-  , word8
-  , word16
-  , word32
-  , word64
-
-  -- ** Floating-point
-  , realFloat
-  , realFrac_
-  , float
-  , double
-
-  -- ** Enumeration
-  , enum
-  , enumBounded
-  , bool
-  , bool_
-
-  -- ** Characters
-  , binit
-  , octit
-  , digit
-  , hexit
-  , lower
-  , upper
-  , alpha
-  , alphaNum
-  , ascii
-  , latin1
-  , unicode
-  , unicodeAll
-
-  -- ** Strings
-  , string
-  , text
-  , utf8
-  , bytes
-
-  -- ** Choice
-  , constant
-  , element
-  , choice
-  , frequency
-  , recursive
-
-  -- ** Conditional
-  , discard
-  , ensure
-  , filter
-  , mapMaybe
-  , filterT
-  , mapMaybeT
-  , just
-  , justT
-
-  -- ** Collections
-  , maybe
-  , either
-  , either_
-  , list
-  , seq
-  , nonEmpty
-  , set
-  , map
-
-  -- ** Subterms
-  , freeze
-  , subterm
-  , subtermM
-  , subterm2
-  , subtermM2
-  , subterm3
-  , subtermM3
-
-  -- ** Combinations & Permutations
-  , subsequence
-  , shuffle
-  , shuffleSeq
-
-  -- * Sampling Generators
-  , sample
-  , print
-  , printTree
-  , printWith
-  , printTreeWith
-  , renderTree
-
-  -- * Internal
-  -- $internal
-
-  -- ** Transfomer
-  , runGenT
-  , evalGen
-  , evalGenT
-  , mapGenT
-  , generate
-  , toTree
-  , toTreeMaybeT
-  , fromTree
-  , fromTreeT
-  , fromTreeMaybeT
-  , runDiscardEffect
-  , runDiscardEffectT
-
-  -- ** Size
-  , golden
-
-  -- ** Shrinking
-  , atLeast
-
-  -- ** Characters
-  , isSurrogate
-  , isNoncharacter
-
-  -- ** Subterms
-  , Vec(..)
-  , Nat(..)
-  , subtermMVec
-  ) where
+module Hedgehog.Internal.Gen
+--  (
+--  -- * Transformer
+--    Gen
+--  , GenT(..)
+--  , MonadGen(..)
+--
+--  -- * Combinators
+--  , generalize
+--
+--  -- ** Shrinking
+--  , shrink
+--  , prune
+--
+--  -- ** Size
+--  , small
+--  , scale
+--  , resize
+--  , sized
+--
+--  -- ** Integral
+--  , integral
+--  , integral_
+--
+--  , int
+--  , int8
+--  , int16
+--  , int32
+--  , int64
+--
+--  , word
+--  , word8
+--  , word16
+--  , word32
+--  , word64
+--
+--  -- ** Floating-point
+--  , realFloat
+--  , realFrac_
+--  , float
+--  , double
+--
+--  -- ** Enumeration
+--  , enum
+--  , enumBounded
+--  , bool
+--  , bool_
+--
+--  -- ** Characters
+--  , binit
+--  , octit
+--  , digit
+--  , hexit
+--  , lower
+--  , upper
+--  , alpha
+--  , alphaNum
+--  , ascii
+--  , latin1
+--  , unicode
+--  , unicodeAll
+--
+--  -- ** Strings
+--  , string
+--  , text
+--  , utf8
+--  , bytes
+--
+--  -- ** Choice
+--  , constant
+--  , element
+--  , choice
+--  , frequency
+--  , recursive
+--
+--  -- ** Conditional
+--  , discard
+--  , ensure
+--  , filter
+--  , mapMaybe
+--  , filterT
+--  , mapMaybeT
+--  , just
+--  , justT
+--
+--  -- ** Collections
+--  , maybe
+--  , either
+--  , either_
+--  , list
+--  , seq
+--  , nonEmpty
+--  , set
+--  , map
+--
+--  -- ** Subterms
+--  , freeze
+--  , subterm
+--  , subtermM
+--  , subterm2
+--  , subtermM2
+--  , subterm3
+--  , subtermM3
+--
+--  -- ** Combinations & Permutations
+--  , subsequence
+--  , shuffle
+--  , shuffleSeq
+--
+--  -- * Sampling Generators
+--  , sample
+--  , print
+--  , printTree
+--  , printWith
+--  , printTreeWith
+--  , renderTree
+--
+--  -- * Internal
+--  -- $internal
+--
+--  -- ** Transfomer
+--  , runGenT
+--  , evalGen
+--  , evalGenT
+--  , mapGenT
+--  , generate
+--  , toTree
+--  , toTreeMaybeT
+--  , fromTree
+--  , fromTreeT
+--  , fromTreeMaybeT
+--  , runDiscardEffect
+--  , runDiscardEffectT
+--
+--  -- ** Size
+--  , golden
+--
+--  -- ** Shrinking
+--  , atLeast
+--
+--  -- ** Characters
+--  , isSurrogate
+--  , isNoncharacter
+--
+--  -- ** Subterms
+--  , Vec(..)
+--  , Nat(..)
+--  , subtermMVec
+--  )
+  where
 
 import           Control.Applicative (Alternative(..),liftA2)
 import           Control.Monad (MonadPlus(..), filterM, guard, replicateM, join)
@@ -217,12 +221,11 @@ import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
 import           Data.Word (Word8, Word16, Word32, Word64)
 
-import           Hedgehog.Internal.Distributive (MonadTransDistributive(..))
 import           Hedgehog.Internal.Prelude hiding (either, maybe, seq)
 import           Hedgehog.Internal.Seed (Seed)
 import qualified Hedgehog.Internal.Seed as Seed
 import qualified Hedgehog.Internal.Shrink as Shrink
-import           Hedgehog.Internal.Tree (Tree, TreeT(..), NodeT(..))
+import           Hedgehog.Internal.Tree (Tree(..))
 import qualified Hedgehog.Internal.Tree as Tree
 import           Hedgehog.Range (Size, Range)
 import qualified Hedgehog.Range as Range
@@ -246,38 +249,31 @@ type Gen =
 --
 newtype GenT m a =
   GenT {
-      unGenT :: Size -> Seed -> TreeT (MaybeT m) a
-    }
+      unGenT :: Size -> Seed -> m (Maybe (Tree a))
+    } deriving (Functor)
+
+pattern Gen :: (Size -> Seed -> Maybe (Tree a)) -> GenT Identity a
+pattern Gen m <- ((fmap . fmap) runIdentity . unGenT -> m)
+  where
+    Gen m = GenT $ (fmap . fmap) Identity m
+
+runGenT :: Size -> Seed -> GenT m a -> m (Maybe (Tree a))
+runGenT size seed (GenT m) = m size seed
 
 -- | Runs a generator, producing its shrink tree.
---
-runGenT :: Size -> Seed -> GenT m a -> TreeT (MaybeT m) a
-runGenT size seed (GenT m) =
-  m size seed
-
--- | Run a generator, producing its shrink tree.
---
---   'Nothing' means discarded, 'Just' means we have a value.
 --
 evalGen :: Size -> Seed -> Gen a -> Maybe (Tree a)
-evalGen size seed =
-  Tree.mapMaybe id .
-  evalGenT size seed
-
--- | Runs a generator, producing its shrink tree.
---
-evalGenT :: Monad m => Size -> Seed -> GenT m a -> TreeT m (Maybe a)
-evalGenT size seed =
-  runDiscardEffectT .
-  runGenT size seed
+evalGen size seed (Gen m) =
+  m size seed
 
 -- | Map over a generator's shrink tree.
 --
-mapGenT :: (TreeT (MaybeT m) a -> TreeT (MaybeT n) b) -> GenT m a -> GenT n b
+mapGenT :: Functor m => (Tree a -> Tree b) -> GenT m a -> GenT m b
 mapGenT f gen =
   GenT $ \size seed ->
-    f (runGenT size seed gen)
+    (fmap . fmap) f (runGenT size seed gen)
 
+{-
 -- | Lift a predefined shrink tree in to a generator, ignoring the seed and the
 --   size.
 --
@@ -343,22 +339,28 @@ generalize :: Monad m => Gen a -> GenT m a
 generalize =
   hoist Morph.generalize
 
+-}
+
 ------------------------------------------------------------------------
 -- MonadGen
 
 -- | Class of monads which can generate input data for tests.
 --
-class (Monad m, Monad (GenBase m)) => MonadGen m where
-  type GenBase m :: (* -> *)
+class (Monad m) => MonadGen m where
+  -- reader for size/seed
+  askSize :: m Size
+  askSeed :: m Seed
+  localSize :: (Size -> Size) -> m a -> m a
+  localSeed :: (Seed -> Seed) -> m a -> m a
 
-  -- | Extract a 'GenT' from a  'MonadGen'.
-  --
-  toGenT :: m a -> GenT (GenBase m) a
+  -- discarding of test cases
+  discard :: m a
 
-  -- | Lift a 'GenT' in to a 'MonadGen'.
-  --
-  fromGenT :: GenT (GenBase m) a -> m a
+  exposeTree :: m a -> m (Tree a)
 
+  consumeTree :: m (Tree a) -> m a
+
+{-
 -- | Transform a 'MonadGen' as a 'GenT'.
 --
 withGenT :: (MonadGen m, MonadGen n) => (GenT (GenBase m) a -> GenT (GenBase n) b) -> m a -> n b
@@ -1758,3 +1760,5 @@ renderTree size seed gen =
 -- These functions are exported in case you need them in a pinch, but are not
 -- part of the public API and may change at any time, even as part of a minor
 -- update.
+
+-}

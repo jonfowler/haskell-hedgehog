@@ -48,33 +48,18 @@ module Hedgehog.Internal.Tree
 --  )
   where
 
-import           Control.Applicative (Alternative(..), liftA2)
-
 import Control.Monad
 
 import Data.Monoid
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
-import           Hedgehog.Internal.Distributive
-import           Control.Monad.Trans.Control (MonadBaseControl (..))
-
 import           Prelude hiding (filter)
 
 ------------------------------------------------------------------------
 
-data Tree a
-  = Empty
-  | Node a [Tree a]
+data Tree a = Node {nodeValue :: a, nodeChildren :: [Tree a]}
   deriving (Eq, Show, Functor)
-
-treeMaybe :: Tree a -> Maybe (a, [Tree a])
-treeMaybe Empty = Nothing
-treeMaybe (Node x l) = Just (x, l)
-
-maybeTree :: Maybe (a, [Tree a]) -> Tree a
-maybeTree Nothing = Empty
-maybeTree (Just (x, xs)) = Node x xs
 
 -- | Create a tree from a value and an unfolding function.
 --
@@ -84,7 +69,6 @@ unfold f x = Node x $ fmap (unfold f) (f x)
 -- | Expand a tree using an unfolding function.
 --
 expand :: (a -> [a]) -> Tree a -> Tree a
-expand _ Empty = Empty
 expand f (Node x xs) = Node x
   $ fmap (expand f) xs <> fmap (unfold f) (f x)
 
@@ -93,7 +77,6 @@ expand f (Node x xs) = Node x
 --   /@prune 0@ will throw away all of a tree's children./
 --
 prune :: Int -> Tree a -> Tree a
-prune _ Empty = Empty
 prune n (Node x xs)
   | n <= 0 = Node x []
   | otherwise =  Node x $ fmap (prune (n - 1)) xs
@@ -101,7 +84,6 @@ prune n (Node x xs)
 -- | Returns the depth of the deepest leaf node in the tree.
 --
 depth :: Tree a -> Int
-depth Empty = 0
 depth (Node _ xs) = 1 + maximum (fmap depth xs)
 
 {-
@@ -137,14 +119,14 @@ fromPred p a = a <$ guard (p a)
 --   If the root of the tree does not match the predicate then 'Nothing' is
 --   returned.
 --
-filter :: (a -> Bool) -> Tree a -> Tree a
+filter :: (a -> Bool) -> Tree a -> Maybe (Tree a)
 filter p = mapMaybe (fromPred p)
 
-mapMaybe :: (a -> Maybe b) -> Tree a -> Tree b
-mapMaybe _ Empty = Empty
-mapMaybe p (Node x xs) = case p x of
-  Nothing -> Empty
-  Just x' -> Node x' $ fmap (mapMaybe p) xs
+mapMaybe :: (a -> Maybe b) -> Tree a -> Maybe (Tree b)
+mapMaybe p (Node x xs) = fmap (\x' ->
+  Node x' (Maybe.mapMaybe (mapMaybe p) xs)
+  )
+  (p x)
 
 
 ------------------------------------------------------------------------
@@ -200,16 +182,12 @@ shrinkOne ts = do
   pure $ interleave (xs ++ [y] ++ zs)
 
 interleave :: [Tree a] -> Tree [a]
-interleave ts = case sequenceA ts of
-  Empty -> Empty
-  Node x _ -> Node x (dropSome ts <> shrinkOne ts)
+interleave ts = Node (fmap nodeValue ts) (dropSome ts <> shrinkOne ts)
 
 instance Foldable Tree where
-  foldMap _ Empty = mempty
   foldMap f (Node x xs) = f x <> (foldMap . foldMap) f xs
 
 instance Traversable Tree where
-  traverse _ Empty = pure Empty
   traverse f (Node x xs)
     = Node <$> f x <*> (traverse . traverse) f xs
 
@@ -219,8 +197,6 @@ instance Traversable Tree where
 -- shrinks the left and right arguments independently.
 instance Applicative Tree where
   pure x = Node x []
-  Empty <*> _ = Empty
-  _ <*> Empty = Empty
   nab@(Node ab tabs) <*> na@(Node a tas) = Node (ab a) $
     fmap (<*> na) tabs <> fmap (nab <*>) tas
 
@@ -238,9 +214,7 @@ instance Monad Tree where
   return =
     pure
 
-  Empty >>= _ = Empty
   Node x xs >>= k = case k x of
-    Empty -> Empty
     Node y ys -> Node y $
       fmap (>>= k) xs <> ys
 
@@ -286,7 +260,6 @@ renderForestLines xs0 =
 -- | Render a tree of strings.
 --
 renderTree :: Tree String -> [String]
-renderTree Empty = ["empty tree"]
 renderTree (Node x xs) = lines (renderVal x) <> renderForestLines xs
 
 render :: Tree String -> String
